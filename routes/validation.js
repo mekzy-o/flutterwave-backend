@@ -1,16 +1,21 @@
 import express from 'express';
 import dataValidations from '../utils/ruleValidator.js';
-import validate from '../middleware/requestValidation.js';
+import requestBodyValidation from '../middleware/requestValidation.js';
 
 const router = express.Router();
-const { requestValidator } = validate;
 
-router.post('/', requestValidator, (req, res) => {
-  const { rule } = req.body;
+router.post('/', requestBodyValidation, (req, res) => {
+  const { rule, data } = req.body;
   const { field } = rule;
   const successMessage = `field ${field} successfully validated.`;
   const errorMessage = `field ${field} failed validation.`;
   const result = dataValidations(req.body);
+  let splitField = field.split('.');
+  const field_value =
+    splitField.length === 2
+      ? data[splitField[0]][splitField[1]]
+      : data[splitField[0]];
+
   try {
     if (result) {
       return res.status(200).json({
@@ -20,6 +25,7 @@ router.post('/', requestValidator, (req, res) => {
           validation: {
             error: false,
             field: field,
+            field_value: field_value,
             condition: rule.condition,
             condition_value: rule.condition_value,
           },
@@ -34,14 +40,13 @@ router.post('/', requestValidator, (req, res) => {
         validation: {
           error: true,
           field: field,
+          field_value: field_value,
           condition: rule.condition,
           condition_value: rule.condition_value,
         },
       },
     });
   } catch (error) {
-    console.log(error, 'caught here');
-
     res.status(400).json({
       message: error.message,
       status: 'error',

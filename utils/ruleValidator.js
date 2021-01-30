@@ -1,3 +1,25 @@
+const ruleExpressionMap = {
+  gte: '>=',
+  gt: '>',
+  neq: '!=',
+  eq: '==',
+  contains: (value, expectedValue) => value.includes(expectedValue),
+};
+
+const evaluateExpression = (value, expression, expected) => {
+  const mappedExpr = ruleExpressionMap[expression];
+  if (typeof mappedExpr === 'function') {
+    return mappedExpr(value, expected);
+  }
+  console.log(`${value} ${mappedExpr} ${expected}`);
+  return new Function(`return ${value} ${mappedExpr} ${expected}`)();
+};
+
+const validateRule = ({ rule, value }) => {
+  const { condition, condition_value } = rule;
+  return evaluateExpression(value, condition, condition_value);
+};
+
 const queryNestedArrayField = (data, indexString) => {
   const [key, ...a] = indexString.split('[');
   const obj = key ? data[key] : data;
@@ -18,27 +40,6 @@ const queryNestedField = (nestedField, fields) => {
   );
 };
 
-const ruleExpressionMap = {
-  gte: '>=',
-  gt: '>',
-  lt: '<',
-  eq: '==',
-  contains: (value, expectedValue) => value.includes(expectedValue),
-};
-
-const evaluateExpression = (value, expression, expected) => {
-  const mappedExpr = ruleExpressionMap[expression];
-  if (typeof mappedExpr === 'function') {
-    return mappedExpr(value, expected);
-  }
-  return new Function(`return ${value} ${mappedExpr} ${expected}`)();
-};
-
-const validateRule = ({ rule, value }) => {
-  const { condition, condition_value } = rule;
-  return evaluateExpression(value, condition, condition_value);
-};
-
 const jsonValidation = ({ rule, data }) => {
   const { field } = rule;
   return validateRule({ rule, value: queryNestedField(data, field) });
@@ -46,14 +47,12 @@ const jsonValidation = ({ rule, data }) => {
 
 const indexBasedValidation = ({ rule, data }) => {
   const { field } = rule;
-  if (!Number(field))
+  if (!Number(field) && Number(field) !== 0)
     throw new Error('Only an integer field is allowed when data is array.');
 
   const fieldValue = data[Number(field)];
-
   if (fieldValue === undefined)
     throw new Error(`field ${field} is missing from data.`);
-
   return validateRule({ rule, value: fieldValue });
 };
 
@@ -66,7 +65,6 @@ const dataValidations = ({ data, rule }) => {
   const handler =
     dataTypeValidationHandler[Array.isArray(data) ? 'array' : typeof data] ||
     jsonValidation;
-
   return handler({ data, rule });
 };
 

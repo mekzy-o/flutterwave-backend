@@ -22,7 +22,8 @@
   "homepage": "https://github.com/mekzy-o/flutterwave-backend#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "express-validator": "^6.9.2"
+    "express-validator": "^6.9.2",
+    "joi": "^17.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.10",

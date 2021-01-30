@@ -1,65 +1,45 @@
-import { check, validationResult } from 'express-validator';
+import Joi from 'joi';
 
-const validate = {
-  requestValidator: [
-    check('rule')
-      .not()
-      .isEmpty()
-      .withMessage('rule is required.')
-      .custom((value) => {
-        if (typeof value == 'object' && !Array.isArray(value)) {
-          return true;
-        }
-        return false;
-      })
-      .withMessage('rule should be an object.')
-      .notEmpty()
-      .custom((value) => {
-        if (!value.field) {
-          throw new Error('rule field is required.');
-        }
-        if (!value.condition) {
-          throw new Error('rule condition is required.');
-        }
-        if (!value.condition_value) {
-          throw new Error('rule condition_value is required.');
-        }
-        if (!value.condition == ('gte' || 'gt' || 'lt' || 'contains')) {
-          throw new Error('Invalid condition_value was provided.');
-        }
-        return true;
-      }),
-    check('data')
-      .not()
-      .isEmpty()
-      .withMessage('data is required.')
-      .custom((value) => {
-        if (
-          typeof value == 'object' ||
-          Array.isArray(value) ||
-          typeof value == 'string'
-        ) {
-          return true;
-        }
-        return false;
-      })
-      .withMessage('data should be an object, array or string.'),
-    (req, res, next) => {
-      const errors = validationResult(req);
-      let errorMessage = '';
-      if (!errors.isEmpty()) {
-        errors.array({ onlyFirstError: true }).forEach((error) => {
-          errorMessage = error.msg;
-        });
-        return res.status(400).json({
-          message: errorMessage,
-          status: 'error',
-          data: null,
-        });
-      }
-      return next();
-    },
-  ],
+const dataIsInvalid = (data) => {
+  const dataType = typeof data;
+  if (dataType === 'string' || dataType === 'object') {
+    return false;
+  }
+  return true;
 };
 
-export default validate;
+const requestBodyValidation = (req, res, next) => {
+  const schema = Joi.object({
+    rule: Joi.object({
+      field: Joi.string().required(),
+
+      condition: Joi.string()
+        .valid('neq', 'eq', 'gte', 'gt', 'contains')
+        .required(),
+
+      condition_value: Joi.required(),
+    }).required(),
+
+    data: Joi.required(),
+  });
+
+  const { error } = schema.validate(req.body);
+
+  if (error) {
+    res.status(400).json({
+      message: `${error.message.replace(/\"/g, '')}.`,
+      status: 'error',
+      data: null,
+    });
+  } else if (dataIsInvalid(req.body.data)) {
+    res.status(400).json({
+      message: 'data should be an object, array or string.',
+      status: 'error',
+      data: null,
+    });
+  } else {
+    next();
+  }
+};
+
+export default requestBodyValidation;
