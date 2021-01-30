@@ -1,8 +1,8 @@
 const ruleExpressionMap = {
-  gte: '>=',
-  gt: '>',
-  neq: '!=',
-  eq: '==',
+  gte: (value, expectedValue) => value >= expectedValue,
+  gt: (value, expectedValue) => value > expectedValue,
+  neq: (value, expectedValue) => value != expectedValue,
+  eq: (value, expectedValue) => value == expectedValue,
   contains: (value, expectedValue) => value.includes(expectedValue),
 };
 
@@ -11,8 +11,7 @@ const evaluateExpression = (value, expression, expected) => {
   if (typeof mappedExpr === 'function') {
     return mappedExpr(value, expected);
   }
-  console.log(`${value} ${mappedExpr} ${expected}`);
-  return new Function(`return ${value} ${mappedExpr} ${expected}`)();
+  throw new Error('validation expression handler not defined.');
 };
 
 const validateRule = ({ rule, value }) => {
@@ -27,22 +26,24 @@ const queryNestedArrayField = (data, indexString) => {
   return a.reduce((acc, field) => acc[Number(field.split(']')[0])], obj);
 };
 
-const queryNestedField = (nestedField, fields) => {
+const queryNestedField = (nestedField, fields, shouldThrow) => {
   const fieldsToQuery = fields.split('.');
 
   if (fieldsToQuery.length > 2)
     throw new Error('Nesting cannot be more than 2 levels deep.');
-
-  return fieldsToQuery.reduce(
+  const queriedField = fieldsToQuery.reduce(
     (acc, field) =>
       field.includes('[') ? queryNestedArrayField(acc, field) : acc[field],
     nestedField
   );
+  if (!queriedField && shouldThrow)
+    throw new Error(`field ${fields} is missing from data.`);
+  return queriedField;
 };
 
 const jsonValidation = ({ rule, data }) => {
   const { field } = rule;
-  return validateRule({ rule, value: queryNestedField(data, field) });
+  return validateRule({ rule, value: queryNestedField(data, field, true) });
 };
 
 const indexBasedValidation = ({ rule, data }) => {
