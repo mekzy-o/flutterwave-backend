@@ -34,7 +34,7 @@ app.use(function (err, _, res, next) {
   }
 
   res.status(err.status || 400).json({
-    message: err.message ?? 'Something went wrong!',
+    message: err.message ? err.message : 'Something went wrong!',
     status: 'error',
     data: null,
   });
